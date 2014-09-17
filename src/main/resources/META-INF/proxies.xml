@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proxies>
+    <proxy>
+        <name>testClass</name>
+        <class>org.noamicahel.java.interceptor.test.TestInterface</class>
+    </proxy>
+</proxies>
