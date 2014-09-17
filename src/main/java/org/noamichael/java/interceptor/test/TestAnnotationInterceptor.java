@@ -1,6 +1,6 @@
-package org.noamicahel.java.interceptor.test;
+package org.noamichael.java.interceptor.test;
 
-import org.noamicahel.java.interceptor.api.AnnotationInterceptor;
+import org.noamichael.java.interceptor.api.AnnotationInterceptor;
 
 /**
  *

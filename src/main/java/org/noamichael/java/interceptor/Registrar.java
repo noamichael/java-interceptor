@@ -1,4 +1,4 @@
-package org.noamicahel.java.interceptor;
+package org.noamichael.java.interceptor;
 
 import java.io.File;
 import java.io.IOException;

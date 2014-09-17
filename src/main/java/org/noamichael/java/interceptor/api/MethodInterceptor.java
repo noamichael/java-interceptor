@@ -1,4 +1,4 @@
-package org.noamicahel.java.interceptor.api;
+package org.noamichael.java.interceptor.api;
 
 /**
  *

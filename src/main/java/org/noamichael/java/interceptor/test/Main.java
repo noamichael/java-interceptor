@@ -1,7 +1,7 @@
-package org.noamicahel.java.interceptor.test;
+package org.noamichael.java.interceptor.test;
 
-import org.noamicahel.java.interceptor.AnnotatedProxy;
-import org.noamicahel.java.interceptor.Registrar;
+import org.noamichael.java.interceptor.AnnotatedProxy;
+import org.noamichael.java.interceptor.Registrar;
 
 /**
  *
