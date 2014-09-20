@@ -18,7 +18,6 @@ public class Main {
     public static void main(String[] args) {
         Main main = new Main();
         Container.getCurrentInstance().startApplication(main);
-        System.out.println(main.list.add(main));
         while (main.car.hasGas()) {
             main.car.start();
             main.car.stop();

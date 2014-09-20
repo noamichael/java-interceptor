@@ -19,6 +19,7 @@ public class ContainerInvocationHandler<T> implements InvocationHandler {
     private final List<AnnotationInterceptor> annotationInterceptors;
     private final T object;
     private final Container container;
+    private AnnotationInterceptor causedError;
     private boolean firstAccess = true;
 
     public ContainerInvocationHandler(T object, Container container) {
@@ -28,11 +29,11 @@ public class ContainerInvocationHandler<T> implements InvocationHandler {
     }
 
     public static <T> T newInstanace(T object, Class<? extends AnnotationInterceptor<?>>... interceptors) {
-        ContainerInvocationHandler<T> annotatedProxy = new ContainerInvocationHandler<>(object, Container.getCurrentInstance());
-        annotatedProxy.addInterceptor(interceptors);
+        ContainerInvocationHandler<T> invocationHandler = new ContainerInvocationHandler<>(object, Container.getCurrentInstance());
+        invocationHandler.addInterceptor(interceptors);
         List<Class<?>> interfaces = new ArrayList();
         getInterfaces(object.getClass(), interfaces);
-        return (T) Proxy.newProxyInstance(object.getClass().getClassLoader(), interfaces.toArray(new Class<?>[0]), annotatedProxy);
+        return (T) Proxy.newProxyInstance(object.getClass().getClassLoader(), interfaces.toArray(new Class<?>[0]), invocationHandler);
     }
 
     private static void getInterfaces(Class c, List<Class<?>> interfaces) {
@@ -48,10 +49,10 @@ public class ContainerInvocationHandler<T> implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        if(firstAccess){
+        if (firstAccess) {
             container.injectProxies(object);
+            firstAccess = false;
         }
-        firstAccess = false;
         doPreInvoke(method);
         Object result = method.invoke(object, args);
         doPostInvoke(method);
@@ -63,10 +64,16 @@ public class ContainerInvocationHandler<T> implements InvocationHandler {
             Method implMethod = object.getClass().getMethod(method.getName(), method.getParameterTypes());
             annotationInterceptors.stream().forEach((interceptor) -> {
                 if (implMethod.isAnnotationPresent(interceptor.getSupportedInterceptor())) {
-                    interceptor.postInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()), object);
+                    try {
+                        interceptor.postInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()), object);
+                    } catch (Exception e) {
+                        causedError = interceptor;
+                        throw new RuntimeException(e);
+                    }
                 }
             });
         } catch (Exception e) {
+             throw new RuntimeException(String.format("Could not do post invoke, interceptor %s threw: ", causedError) + e.getMessage());
         }
     }
 
@@ -75,10 +82,16 @@ public class ContainerInvocationHandler<T> implements InvocationHandler {
             Method implMethod = object.getClass().getMethod(method.getName(), method.getParameterTypes());
             annotationInterceptors.stream().forEach((interceptor) -> {
                 if (implMethod.isAnnotationPresent(interceptor.getSupportedInterceptor())) {
-                    interceptor.preInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()), object);
+                    try {
+                        interceptor.preInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()), object);
+                    } catch (Exception e) {
+                        causedError = interceptor;
+                        throw new RuntimeException(e);
+                    }
                 }
             });
         } catch (Exception e) {
+            throw new RuntimeException(String.format("Could not do pre invoke, interceptor %s threw: ", causedError) + e.getMessage());
         }
     }
 

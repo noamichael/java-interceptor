@@ -18,7 +18,7 @@ public class DefaultCar implements Car {
     @RequiresGas(50)
     @Override
     public void start() {
-        System.out.println("List worked: " + test != null);
+        System.out.println("List worked: " + (test != null));
         if (gas > 0) {
             System.out.println("Starting the car");
         } else {

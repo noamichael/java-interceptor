@@ -11,8 +11,9 @@ import org.noamichael.java.interceptor.api.MethodInterceptor;
 @MethodInterceptor
 public class GasInterceptor implements AnnotationInterceptor<RequiresGas> {
 
+    
     @Override
-    public void preInvoke(RequiresGas annotation, Object instance) {
+    public void preInvoke(RequiresGas annotation, Object instance) throws Exception {
         if (instance instanceof Car) {
             Car car = (Car) instance;
             System.out.println("Current gas: " + car.getGas());
@@ -20,7 +21,7 @@ public class GasInterceptor implements AnnotationInterceptor<RequiresGas> {
     }
 
     @Override
-    public void postInvoke(RequiresGas annotation, Object instance) {
+    public void postInvoke(RequiresGas annotation, Object instance) throws Exception {
         if (instance instanceof Car) {
             Car car = (Car) instance;
             System.out.println(String.format("Using %d gas units", annotation.value()));
