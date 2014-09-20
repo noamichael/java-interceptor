@@ -5,7 +5,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -15,18 +14,21 @@ import java.util.logging.Logger;
  * @author Michael
  * @param <T>
  */
-public class AnnotatedProxy<T> implements InvocationHandler {
+public class ContainerInvocationHandler<T> implements InvocationHandler {
 
     private final List<AnnotationInterceptor> annotationInterceptors;
     private final T object;
+    private final Container container;
+    private boolean firstAccess = true;
 
-    public AnnotatedProxy(T object) {
+    public ContainerInvocationHandler(T object, Container container) {
         this.object = object;
         this.annotationInterceptors = new ArrayList<>();
+        this.container = container;
     }
 
-    public static <T> T newInstanace(T object, Class<? extends AnnotationInterceptor>... interceptors) {
-        AnnotatedProxy<T> annotatedProxy = new AnnotatedProxy<>(object);
+    public static <T> T newInstanace(T object, Class<? extends AnnotationInterceptor<?>>... interceptors) {
+        ContainerInvocationHandler<T> annotatedProxy = new ContainerInvocationHandler<>(object, Container.getCurrentInstance());
         annotatedProxy.addInterceptor(interceptors);
         List<Class<?>> interfaces = new ArrayList();
         getInterfaces(object.getClass(), interfaces);
@@ -46,6 +48,10 @@ public class AnnotatedProxy<T> implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        if(firstAccess){
+            container.injectProxies(object);
+        }
+        firstAccess = false;
         doPreInvoke(method);
         Object result = method.invoke(object, args);
         doPostInvoke(method);
@@ -57,7 +63,7 @@ public class AnnotatedProxy<T> implements InvocationHandler {
             Method implMethod = object.getClass().getMethod(method.getName(), method.getParameterTypes());
             annotationInterceptors.stream().forEach((interceptor) -> {
                 if (implMethod.isAnnotationPresent(interceptor.getSupportedInterceptor())) {
-                    interceptor.postInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()));
+                    interceptor.postInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()), object);
                 }
             });
         } catch (Exception e) {
@@ -69,7 +75,7 @@ public class AnnotatedProxy<T> implements InvocationHandler {
             Method implMethod = object.getClass().getMethod(method.getName(), method.getParameterTypes());
             annotationInterceptors.stream().forEach((interceptor) -> {
                 if (implMethod.isAnnotationPresent(interceptor.getSupportedInterceptor())) {
-                    interceptor.preInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()));
+                    interceptor.preInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()), object);
                 }
             });
         } catch (Exception e) {
@@ -84,7 +90,7 @@ public class AnnotatedProxy<T> implements InvocationHandler {
             AnnotationInterceptor annotationInterceptor = interceptor.getConstructor().newInstance();
             this.annotationInterceptors.add(annotationInterceptor);
         } catch (Exception ex) {
-            Logger.getLogger(AnnotatedProxy.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(ContainerInvocationHandler.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 

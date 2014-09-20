@@ -1,6 +1,5 @@
 package org.noamichael.java.interceptor.test;
 
-import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -11,8 +10,9 @@ import org.noamichael.java.interceptor.api.MethodInterceptor;
  *
  * @author Michael
  */
-@Target({ElementType.METHOD})
-@Documented
-@MethodInterceptor
 @Retention(RetentionPolicy.RUNTIME)
-public @interface TestAnnotation {}
+@Target({ElementType.METHOD, ElementType.TYPE})
+@MethodInterceptor
+public @interface RequiresGas {
+    int value() default 10;
+}

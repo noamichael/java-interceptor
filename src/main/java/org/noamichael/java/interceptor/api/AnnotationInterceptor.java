@@ -9,9 +9,9 @@ import java.lang.annotation.Annotation;
  */
 public interface AnnotationInterceptor<T extends Annotation> {
 
-    public void preInvoke(T annotation);
+    public void preInvoke(T annotation, Object instance);
 
-    public void postInvoke(T annotation);
+    public void postInvoke(T annotation, Object instance);
     
     public Class<T> getSupportedInterceptor();
     
