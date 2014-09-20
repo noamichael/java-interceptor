@@ -1,17 +1,17 @@
 package org.noamichael.java.interceptor;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
+import java.lang.annotation.ElementType;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
+import java.util.function.Predicate;
+import org.noamichael.java.interceptor.api.AnnotationInterceptor;
+import org.noamichael.java.interceptor.api.EndPoint;
+import org.noamichael.java.interceptor.api.Proxy;
+import org.noamichael.java.interceptor.test.ProxyListTest;
+import org.noamichael.utils.se.ClassPathScanner;
+import org.noamichael.utils.se.ClassPathScanner.ScannerSearchResult;
+import org.noamichael.utils.se.ObjectUtil;
 
 /**
  *
@@ -21,58 +21,45 @@ public class Registrar {
 
     private static final List<FutureProxy> FUTURE_PROXIES = new ArrayList();
     private static final Registrar CURRENT_INSTANCE = new Registrar();
+    
+
+    private Object main;
 
     public static Registrar getCurrentInstance() {
         return CURRENT_INSTANCE;
     }
 
     private Registrar() {
-        if (FUTURE_PROXIES.isEmpty()) {
-            readProxies();
-        }
+
+    }
+
+    public void startApplication(Object main) {
+        this.main = main;
+        readProxies();
     }
 
     private void readProxies() throws RuntimeException {
-        try {
-            
-            File xml = new File(ClassLoader.getSystemResource("META-INF/proxies.xml").toURI());
-            if (!xml.canRead()) {
-                System.out.println("No proxies.xml file detected under META-INF");
-            } else {
-                DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-                DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-                Document doc = dBuilder.parse(xml);
-                doc.normalize();
-                doc.getDocumentElement().normalize();
-                
-                NodeList proxies = doc.getDocumentElement().getChildNodes();
-                String currentName = "";
-                String currentClass = "";
-                
-                for (int i = 0; i < proxies.getLength(); i++) {
-                    NodeList insidesProxies = proxies.item(i).getChildNodes();
-                    for (int j = 0; j < insidesProxies.getLength(); j++) {
-                        Node node = insidesProxies.item(j);
-                        if (node.getNodeType() == Node.ELEMENT_NODE) {
-                            if (node.getNodeName().equals("name")) {
-                                currentName = node.getTextContent();
-                            }
-                            if (node.getNodeName().equals("class")) {
-                                currentClass = node.getTextContent();
-                            }
-                        }
-                        if (currentClass.length() > 0 && currentName.length() > 0) {
-                            FUTURE_PROXIES.add(new FutureProxy(currentName, currentClass));
-                            currentClass = "";
-                            currentName = "";
-                            System.out.println(FUTURE_PROXIES);
-                        }
+        List<ScannerSearchResult> searchResults = ClassPathScanner.scanProjectForAnnotation(Proxy.class, ElementType.FIELD);
+        for (ScannerSearchResult result : searchResults) {
+            List<Field> fields = (List<Field>) result.getResult();
+            for (Field f : fields) {
+                Predicate<Class> isEndpoint = (clazz) -> f.getType().isAssignableFrom(clazz) && !clazz.isInterface() && clazz.isAnnotationPresent(EndPoint.class);
+                List<ScannerSearchResult> classes = ClassPathScanner.scanForClasses(isEndpoint);
+                System.out.println(classes);
+                if (!classes.isEmpty()) {
+                    try {
+                        f.setAccessible(true);
+                        Object proxy = AnnotatedProxy.newInstanace(ObjectUtil.newUnknownInstance(classes.get(0).getResultClass()), (Class<? extends AnnotationInterceptor>) null);
+                        System.out.println("Proxy: " + proxy);
+                        f.set(main, proxy);
+                    } catch (IllegalArgumentException | IllegalAccessException e) {
+                        throw new RuntimeException(e);
                     }
                 }
+
             }
-        } catch (URISyntaxException | ParserConfigurationException | SAXException | IOException e) {
-            throw new RuntimeException(e);
         }
+        System.out.println(searchResults);
     }
 
     public class FutureProxy {

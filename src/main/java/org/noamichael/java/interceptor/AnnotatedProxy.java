@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,10 +25,23 @@ public class AnnotatedProxy<T> implements InvocationHandler {
         this.annotationInterceptors = new ArrayList<>();
     }
 
-    public static <T> T newInstanace(T object,Class<? extends AnnotationInterceptor>... interceptors) {
+    public static <T> T newInstanace(T object, Class<? extends AnnotationInterceptor>... interceptors) {
         AnnotatedProxy<T> annotatedProxy = new AnnotatedProxy<>(object);
         annotatedProxy.addInterceptor(interceptors);
-        return (T) Proxy.newProxyInstance(object.getClass().getClassLoader(), object.getClass().getInterfaces(), annotatedProxy);
+        List<Class<?>> interfaces = new ArrayList();
+        getInterfaces(object.getClass(), interfaces);
+        return (T) Proxy.newProxyInstance(object.getClass().getClassLoader(), interfaces.toArray(new Class<?>[0]), annotatedProxy);
+    }
+
+    private static void getInterfaces(Class c, List<Class<?>> interfaces) {
+        if (c.getSuperclass() != null) {
+            getInterfaces(c.getSuperclass(), interfaces);
+        }
+        for (Class<?> intrface : c.getInterfaces()) {
+            if (!interfaces.contains(intrface)) {
+                interfaces.add(intrface);
+            }
+        }
     }
 
     @Override
@@ -39,32 +53,33 @@ public class AnnotatedProxy<T> implements InvocationHandler {
     }
 
     private void doPostInvoke(Method method) {
-        annotationInterceptors.stream().forEach((interceptor) -> {
-            try {
-                Method implMethod = object.getClass().getMethod(method.getName(), method.getParameterTypes());
+        try {
+            Method implMethod = object.getClass().getMethod(method.getName(), method.getParameterTypes());
+            annotationInterceptors.stream().forEach((interceptor) -> {
                 if (implMethod.isAnnotationPresent(interceptor.getSupportedInterceptor())) {
                     interceptor.postInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()));
                 }
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-        });
+            });
+        } catch (Exception e) {
+        }
     }
 
     private void doPreInvoke(Method method) {
-        annotationInterceptors.stream().forEach((interceptor) -> {
-            try {
-                Method implMethod = object.getClass().getMethod(method.getName(), method.getParameterTypes());
+        try {
+            Method implMethod = object.getClass().getMethod(method.getName(), method.getParameterTypes());
+            annotationInterceptors.stream().forEach((interceptor) -> {
                 if (implMethod.isAnnotationPresent(interceptor.getSupportedInterceptor())) {
                     interceptor.preInvoke(implMethod.getAnnotation(interceptor.getSupportedInterceptor()));
                 }
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-        });
+            });
+        } catch (Exception e) {
+        }
     }
 
     public void addInterceptor(Class<? extends AnnotationInterceptor> interceptor) {
+        if (interceptor == null) {
+            return;
+        }
         try {
             AnnotationInterceptor annotationInterceptor = interceptor.getConstructor().newInstance();
             this.annotationInterceptors.add(annotationInterceptor);
